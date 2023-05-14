@@ -14,20 +14,31 @@
 <a href="https://github.com/Bin-Huang/chatbox/releases" target="_blank">
 <img alt="macOS" src="https://img.shields.io/badge/-macOS-black?style=flat-square&logo=apple&logoColor=white" />
 </a>
-
 <a href="https://github.com/Bin-Huang/chatbox/releases" target="_blank">
 <img alt="Windows" src="https://img.shields.io/badge/-Windows-blue?style=flat-square&logo=windows&logoColor=white" />
 </a>
-
 <a href="https://github.com/Bin-Huang/chatbox/releases" target="_blank">
 <img alt="Linux" src="https://img.shields.io/badge/-Linux-yellow?style=flat-square&logo=linux&logoColor=white" />
 </a>
-
+<a href="https://github.com/Bin-Huang/chatbox/releases" target="_blank">
+<img alt="Downloads" src="https://img.shields.io/github/downloads/Bin-Huang/chatbox/total.svg?style=flat" />
+</a>
+<a href="https://twitter.com/benn_huang" target="_blank">
+<img alt="Twitter" src="https://img.shields.io/badge/follow-benn_huang-blue?style=flat&logo=Twitter" />
+</a>
 </p>
 
-<!-- ![](./doc/demo.png) -->
-![](./doc/demo2.png)
-![](./doc/demo3.gif)
+<table>
+<tr>
+<td>
+<img src='./doc/snapshot2.png' />
+</td>
+<td>
+<img src='./doc/snapshot4.png' />
+</td>
+</tr>
+</table>
+
 
 ## 特性
 
@@ -35,6 +46,7 @@
 - 数据存储在本地，不会丢失
 - 支持 GPT-4 和其他模型
 - 支持自定义域名代理
+- 适合团队办公，支持在团队中共享 OpenAI API 资源，[查看教程](./team-sharing/README-CN.md)
 - 更多功能：Markdown、消息引用、字数与token估算、夜间模式……
 - 符合人体工程学的 UI 设计
 - 提供安装包，无需部署
@@ -42,30 +54,31 @@
 
 ## 下载
 
-**下载安装包**：
+*Chatbox 支持所有的主流操作系统，包括： Windows、 Mac (Intel, M1) 和 Linux。*
 
-[>>点击这里查看可供下载的安装包<<](https://github.com/Bin-Huang/chatbox/releases)
+### 从官方网站下载
 
+请访问 **[chatboxapp.xyz](https://chatboxapp.xyz/)** 下载最新版本。
 
-**支持系统**：
+### 从 Github Releases 下载
 
-- **Windows**: 请下载 `.msi` 安装包文件
-- **Mac**: 请下载 `.dmg`（推荐）或 `.tar` 文件，已经支持 x64, arm64(暂时请下载 x64 版本，已兼容)
-- **Linux**: 请下载 `.AppImage`（推荐）或 `.deb` 文件
+您可以访问 **[Github Releases](https://github.com/Bin-Huang/chatbox/releases)** 浏览并下载所有历史版本。
 
-**从包管理器下载**:
+### 通过包管理器下载
 
-[aur](https://aur.archlinux.org/packages/chatbox-bin)
+#### [aur](https://aur.archlinux.org/packages/chatbox-bin)
+
+如果您使用的是 Arch Linux，可以通过 AUR 下载并安装 Chatbox：
 
 ```
 paru -S chatbox-bin
 ```
 
-## 为什么需要 ChatBox？
+## Chatbox 团队共享功能
 
-- ChatBox 帮助你更自由地设计、调试和管理 prompt，让你更好地操作 AI 模型。
-- ChatBox 还帮你在本地保存了所有的聊天记录和 prompt，防止在线服务的数据丢失。
-- 直接使用 ChatGPT API (OpenAI API) 是比较困难的，需要了解编程与接口调用，而且用起来不够方便。ChatBox 可以帮助你处理所有的底层调用。
+用 AI 来提高团队生产力，是 Chatbox 的一个重要特性。Chatbox 可以让你的团队成员共享同一个 OpenAI API 账号的资源，同时不会暴露你的 API KEY。
+
+点击这里[查看教程](./team-sharing/README-CN.md)。
 
 ## 为什么我开发了 Chatbox？
 
@@ -94,6 +107,8 @@ paru -S chatbox-bin
 - [x] 代码块的复制按钮
 - [x] 停止生成的按钮
 - [x] 标签页的拖拽排序
+- [x] [网页版本](https://web.chatboxapp.xyz)
+- [ ] 兼容 Azure OpenAI API
 - [ ] 更好的 prompt 设置
 - [ ] Prompt Library
 - [ ] 可以发送文件，谈论文件
@@ -118,6 +133,15 @@ paru -S chatbox-bin
 请注意：
 1. 在提交 issue 之前，请确保没有重复话题的 issue。
 2. 请确保标题足够的简洁明了，描述足够的详细。
+
+## 感谢赞助商
+
+作为一个开源项目，我非常感激Chatbox背后的赞助商的支持。他们的协助对我继续开发和改进这个开源软件至关重要。
+
+<a href="https://chatboxapp.xyz/sponsor_redirect/eolink_gh">
+<img style="width: 500px" src="https://chatboxapp.xyz/sponsor_redirect/eolink_resource_web">
+</a>
+
 
 ## Chatbox 期待赞助商！
 

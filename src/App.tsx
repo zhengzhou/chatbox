@@ -1,14 +1,14 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, MutableRefObject } from 'react';
 import Block from './Block'
 import * as client from './client'
 import SessionItem from './SessionItem'
 import {
-    Toolbar, Box, Badge, Snackbar, Chip,
+    Toolbar, Box, Badge, Snackbar,
     List, ListSubheader, ListItemText, MenuList,
-    IconButton, Button, Stack, Grid, MenuItem, ListItemIcon, Typography, Divider,
-    TextField,
+    IconButton, Button, ButtonGroup, Stack, Grid, MenuItem, ListItemIcon, Typography, Divider,
+    TextField, useTheme, useMediaQuery, debounce,
 } from '@mui/material';
-import { Session, createSession, Message, createMessage, SponsorAd } from './types'
+import { Session, createSession, Message, createMessage } from './types'
 import useStore from './store'
 import SettingWindow from './SettingWindow'
 import ChatConfigWindow from './ChatConfigWindow'
@@ -21,16 +21,17 @@ import CleaningServicesIcon from '@mui/icons-material/CleaningServices';
 import Save from '@mui/icons-material/Save'
 import CleanWidnow from './CleanWindow';
 import AboutWindow from './AboutWindow';
-import * as api from './api';
 import { ThemeSwitcherProvider } from './theme/ThemeSwitcher';
 import { useTranslation } from "react-i18next";
 import icon from './icon.png'
 import { save } from '@tauri-apps/api/dialog';
 import { writeTextFile } from '@tauri-apps/api/fs';
-import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined';
-import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
-import * as remote from './remote'
+import ArrowCircleUpIcon from '@mui/icons-material/ArrowCircleUp';
+import ArrowCircleDownIcon from '@mui/icons-material/ArrowCircleDown';
+import SponsorChip from './SponsorChip'
 import "./styles/App.scss"
+import MenuOpenIcon from '@mui/icons-material/MenuOpen';
+import SendIcon from '@mui/icons-material/Send';
 
 import type { DragEndEvent } from '@dnd-kit/core';
 import {
@@ -73,18 +74,17 @@ function Main() {
 
     const sortedSessions = sortSessions(store.chatSessions)
     function handleDragEnd(event: DragEndEvent) {
-        const {active, over} = event;
+        const { active, over } = event;
         if (!over) {
             return
         }
         if (active.id !== over.id) {
-            const oldIndex = sortedSessions.findIndex(({id}) => id === active.id);
-            const newIndex = sortedSessions.findIndex(({id}) => id === over.id);
+            const oldIndex = sortedSessions.findIndex(({ id }) => id === active.id);
+            const newIndex = sortedSessions.findIndex(({ id }) => id === over.id);
             const newReversed = arrayMove(sortedSessions, oldIndex, newIndex);
             store.setSessions(sortSessions(newReversed))
         }
     }
-    
 
     // 是否展示设置窗口
     const [openSettingWindow, setOpenSettingWindow] = React.useState(false);
@@ -96,6 +96,11 @@ function Main() {
 
     // 是否展示相关信息的窗口
     const [openAboutWindow, setOpenAboutWindow] = React.useState(false);
+
+    // 是否展示菜单栏
+    const theme = useTheme();
+    const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
+    const [showMenu, setShowMenu] = React.useState(!isSmallScreen);
 
     const messageListRef = useRef<HTMLDivElement>(null)
     const messageScrollRef = useRef<{ msgId: string, smooth?: boolean } | null>(null)
@@ -139,11 +144,50 @@ function Main() {
 
     // 切换到当前会话，自动滚动到最后一条消息
     useEffect(() => {
+        messageListToBottom();
+    }, [store.currentSession.id])
+
+    // show scroll to top or bottom button when user scroll
+    const [atScrollTop, setAtScrollTop] = React.useState(false);
+    const [atScrollBottom, setAtScrollBottom] = React.useState(false);
+    const [needScroll, setNeedScroll] = React.useState(false);
+    useEffect(() => {
         if (!messageListRef.current) {
             return
         }
-        messageListRef.current.scrollTop = messageListRef.current.scrollHeight
-    }, [store.currentSession.id])
+        const handleScroll = () => {
+            if (!messageListRef.current) {
+                return
+            }
+            const { scrollTop, scrollHeight, clientHeight } = messageListRef.current;
+            if (scrollTop === 0) {
+                setAtScrollTop(true);
+                setAtScrollBottom(false);
+            } else if (scrollTop + clientHeight === scrollHeight) {
+                setAtScrollTop(false);
+                setAtScrollBottom(true);
+            } else {
+                setAtScrollTop(false);
+                setAtScrollBottom(false);
+            }
+            setNeedScroll(scrollHeight > clientHeight);
+          };
+
+          handleScroll();
+          messageListRef.current.addEventListener("scroll", debounce(handleScroll, 100));
+    }, []);
+    const messageListToTop = () => {
+        if (!messageListRef.current) {
+            return
+        }
+        messageListRef.current.scrollTop = 0;
+    };
+    const messageListToBottom = () => {
+        if (!messageListRef.current) {
+            return
+        }
+        messageListRef.current.scrollTop = messageListRef.current.scrollHeight;
+    };
 
     // 会话名称自动生成
     useEffect(() => {
@@ -198,6 +242,7 @@ function Main() {
             store.settings.maxContextSize,
             store.settings.maxTokens,
             store.settings.model,
+            store.settings.temperature,
             prompts.nameConversation(session.messages.slice(0, 3)),
             ({ text: name }) => {
                 name = name.replace(/['"“”]/g, '')
@@ -209,14 +254,14 @@ function Main() {
             }
         )
     }
-    const saveSession = async (session:Session) => {
+    const saveSession = async (session: Session) => {
         const filePath = await save({
             filters: [{
-              name: 'Export',
-              extensions: ['md']
+                name: 'Export',
+                extensions: ['md']
             }]
-          });
-        if(filePath){
+        });
+        if (filePath) {
             const content = session.messages
                 .map(msg => `**${msg.role}**:\n${msg.content}`)
                 .join('\n\n--------------------\n\n')
@@ -232,6 +277,7 @@ function Main() {
             store.settings.maxContextSize,
             store.settings.maxTokens,
             store.settings.model,
+            store.settings.temperature,
             promptMsgs,
             ({ text, cancel }) => {
                 for (let i = 0; i < session.messages.length; i++) {
@@ -277,10 +323,7 @@ function Main() {
         messageScrollRef.current = null
     }
 
-    const [messageInput, setMessageInput] = useState('')
-    useEffect(() => {
-        document.getElementById('message-input')?.focus() // better way?
-    }, [messageInput])
+    const [quoteCache, setQuoteCache] = useState('')
 
     const sessionListRef = useRef<HTMLDivElement>(null)
     const handleCreateNewSession = () => {
@@ -290,31 +333,36 @@ function Main() {
         }
     }
 
-    const [showSponsorAD, setShowSponsorAD] = useState(true)
-    const [sponsorAD, setSponsorAD] = useState<SponsorAd | null>(null)
-    useEffect(() => {
-        (async () => {
-            const ad = await remote.getSponsorAd()
-            setSponsorAD(ad)
-        })()
-    }, [store.currentSession.id])
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     return (
         <Box className='App'>
             <Grid container sx={{
-                flexWrap: 'nowrap',
                 height: '100%',
             }}>
+                {showMenu && (
                 <Grid item
                     sx={{
                         height: '100%',
-                        maxWidth: '210px',
+                        [theme.breakpoints.down("sm")]: {
+                            position: 'absolute',
+                            zIndex: 100,
+                            left: '20px',
+                            right: 0,
+                            bottom: 0,
+                            top: 0,
+                        },
                     }}
                 >
                     <Stack
+                        className='ToolBar'
                         sx={{
+                            width: '210px',
                             height: '100%',
-                            padding: '20px 0',
+                            [theme.breakpoints.down("sm")]: {
+                                position: 'absolute',
+                                zIndex: 1,
+                            },
                         }}
                         spacing={2}
                     >
@@ -327,7 +375,7 @@ function Main() {
                                 height: '35px',
                                 marginRight: '5px',
                             }} />
-                            <Typography variant="h5" color="inherit" component="div">
+                            <Typography variant="h5" color="inherit" component="div" style={{fontSize: '26px'}}>
                                 Chatbox
                             </Typography>
                         </Toolbar>
@@ -364,7 +412,7 @@ function Main() {
                                                 session={session}
                                                 switchMe={() => {
                                                     store.switchCurrentSession(session)
-                                                    document.getElementById('message-input')?.focus() // better way?
+                                                    textareaRef?.current?.focus()
                                                 }}
                                                 deleteMe={() => store.deleteChatSession(session)}
                                                 copyMe={() => {
@@ -433,71 +481,74 @@ function Main() {
                             </MenuItem>
                         </MenuList>
                     </Stack>
-                </Grid>
+                    <Box
+                        onClick={() => setShowMenu(false)}
+                        sx={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                            [theme.breakpoints.up("sm")]: {
+                                display: 'none',
+                            },
+                        }}
+                    ></Box>
+                </Grid>)}
                 <Grid item xs
                     sx={{
+                        width: '0px',
                         height: '100%',
                     }}
                 >
                     <Stack sx={{
                         height: '100%',
-                        padding: '20px 0',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between',
+                        position: 'relative',
                     }} >
-                        <Box>
-                            <Toolbar>
-                                <IconButton edge="start" color="inherit" aria-label="menu" sx={{ mr: 2 }}>
-                                    <ChatBubbleOutlineOutlinedIcon />
-                                </IconButton>
-                                <Typography variant="h6" color="inherit" component="div" noWrap sx={{ flexGrow: 1 }}>
-                                    <span onClick={() => { editCurrentSession() }} style={{ cursor: 'pointer' }}>
-                                        {store.currentSession.name}
-                                    </span>
-                                </Typography>
+                        <Toolbar style={{padding: '0 10px'}}>
+                            <IconButton onClick={() => setShowMenu(!showMenu)} >
                                 {
-                                    showSponsorAD && sponsorAD && (
-                                        <Chip size='small'
-                                            sx={{
-                                                maxWidth: '400px',
-                                                height: 'auto',
-                                                '& .MuiChip-label': {
-                                                    display: 'block',
-                                                    whiteSpace: 'normal',
-                                                },
-                                                borderRadius: '8px',
-                                                marginRight: '25px',
-                                                opacity: 0.6,
-                                            }}
-                                            icon={<CampaignOutlinedIcon />}
-                                            deleteIcon={<CancelOutlinedIcon />}
-                                            onDelete={() => setShowSponsorAD(false)}
-                                            onClick={() => api.openLink(sponsorAD.url)}
-                                            label={sponsorAD.text}
-                                        />
+                                    !showMenu ? (
+                                        <img src={icon} style={{
+                                            width: '30px',
+                                            height: '30px',
+                                        }} />
+                                    ) : (
+                                        <MenuOpenIcon style={{fontSize: '26px'}} />
                                     )
                                 }
-                                <IconButton edge="start" color="inherit" aria-label="menu" sx={{ mr: 2 }}
-                                    onClick={() => setSessionClean(store.currentSession)}
-                                >
-                                    <CleaningServicesIcon />
-                                </IconButton>
-                                <IconButton edge="start" color="inherit" aria-label="menu" sx={{}}
-                                    onClick={() => saveSession(store.currentSession)}
-                                >
-                                    <Save />
-                                </IconButton>
-                            </Toolbar>
-                        </Box>
+                            </IconButton>
+                            <Typography variant="h6" color="inherit" component="div" noWrap
+                                sx={{
+                                    flex: 1,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                }}
+                            >
+                                <span onClick={() => { editCurrentSession() }} style={{ cursor: 'pointer' }}>
+                                    {store.currentSession.name}
+                                </span>
+                            </Typography>
+                            <SponsorChip sessionId={store.currentSession.id} />
+                            <IconButton edge="start" color="inherit" aria-label="menu" sx={{ mr: 2 }}
+                                onClick={() => setSessionClean(store.currentSession)}
+                            >
+                                <CleaningServicesIcon />
+                            </IconButton>
+                            <IconButton edge="start" color="inherit" aria-label="menu" sx={{}}
+                                onClick={() => saveSession(store.currentSession)}
+                            >
+                                <Save />
+                            </IconButton>
+                        </Toolbar>
                         <List
                             className='scroll'
                             sx={{
-                                width: '100%',
                                 bgcolor: 'background.paper',
                                 overflow: 'auto',
                                 '& ul': { padding: 0 },
-                                flexGrow: 2,
+                                height: '100%',
                             }}
                             component="div"
                             ref={messageListRef}
@@ -543,16 +594,36 @@ function Main() {
                                         quoteMsg={() => {
                                             let input = msg.content.split('\n').map((line: any) => `> ${line}`).join('\n')
                                             input += '\n\n-------------------\n\n'
-                                            setMessageInput(input)
+                                            setQuoteCache(input)
                                         }}
                                     />
                                 ))
                             }
                         </List>
-                        <Box sx={{ padding: '20px 0' }}>
+                        <Box sx={{ padding: '20px 0', position: 'relative', }}>
+                            {(needScroll && <ButtonGroup
+                                sx={{
+                                    position: 'absolute',
+                                    right: '0.2rem',
+                                    top: '-5.5rem',
+                                    opacity: 0.6,
+                                }}
+                                orientation="vertical"
+                            >
+                                <IconButton 
+                                    onClick={() => messageListToTop()} 
+                                    sx={{visibility: atScrollTop ? "hidden" : "visible",}}>
+                                    <ArrowCircleUpIcon />
+                                </IconButton>
+                                <IconButton 
+                                    onClick={() => messageListToBottom()}
+                                    sx={{visibility: atScrollBottom ? "hidden" : "visible",}}>
+                                    <ArrowCircleDownIcon />
+                                </IconButton>
+                            </ButtonGroup>)}
                             <MessageInput
-                                messageInput={messageInput}
-                                setMessageInput={setMessageInput}
+                                quoteCache={quoteCache}
+                                setQuotaCache={setQuoteCache}
                                 onSubmit={async (newUserMsg: Message, needGenerating = true) => {
                                     if (needGenerating) {
                                         const promptsMsgs = [...store.currentSession.messages, newUserMsg]
@@ -567,6 +638,7 @@ function Main() {
                                         messageScrollRef.current = { msgId: newUserMsg.id, smooth: true }
                                     }
                                 }}
+                                textareaRef={textareaRef}
                             />
                         </Box>
                     </Stack>
@@ -632,27 +704,48 @@ function Main() {
 
 function MessageInput(props: {
     onSubmit: (newMsg: Message, needGenerating?: boolean) => void
-    messageInput: string
-    setMessageInput: (value: string) => void
+    quoteCache: string
+    setQuotaCache(cache: string): void
+    textareaRef: MutableRefObject<HTMLTextAreaElement | null>
 }) {
     const { t } = useTranslation()
-    const { messageInput, setMessageInput } = props
+    const [messageInput, setMessageInput] = useState('')
+    useEffect(() => {
+        if (props.quoteCache !== '') {
+            setMessageInput(props.quoteCache)
+            props.setQuotaCache('')
+            props.textareaRef?.current?.focus()
+        }
+    }, [props.quoteCache])
     const submit = (needGenerating = true) => {
-        if (messageInput.length === 0) {
+        if (messageInput.trim() === '') {
             return
         }
         props.onSubmit(createMessage('user', messageInput), needGenerating)
         setMessageInput('')
     }
+    useEffect(() => {
+        function keyboardShortcut(e: KeyboardEvent) {
+            if (e.key === 'i' && (e.metaKey || e.ctrlKey)) {
+                props.textareaRef?.current?.focus();
+            }
+        }
+        window.addEventListener('keydown', keyboardShortcut);
+        return () => {
+            window.removeEventListener('keydown', keyboardShortcut)
+        }
+    }, [])
+
     return (
-        <form onSubmit={(e) => {
+        <form  onSubmit={(e) => {
             e.preventDefault()
             submit()
         }}>
             <Stack direction="column" spacing={1} >
-                <Grid container spacing={2}>
+                <Grid container spacing={1}>
                     <Grid item xs>
                         <TextField
+                            inputRef={props.textareaRef}
                             multiline
                             label="Prompt"
                             value={messageInput}
@@ -675,10 +768,10 @@ function MessageInput(props: {
                             }}
                         />
                     </Grid>
-                    <Grid item xs="auto">
+                    <Grid item xs='auto'>
                         <Button type='submit' variant="contained" size='large'
-                            style={{ fontSize: '16px', padding: '10px 20px' }}>
-                            {t('send')}
+                            style={{ padding: '15px 16px' }}>
+                                <SendIcon />
                         </Button>
                     </Grid>
                 </Grid>
